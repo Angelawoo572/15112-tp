@@ -5,6 +5,14 @@ def onAppStart(app):
     app.text = "electricalengineering"
     app.freq_table = huffman_tree.build_frequency_table(app.text)
     app.huffman_tree_root = huffman_tree.build_huffman_tree(app.freq_table)
+    # .items() is same like "(char, frequency[char])"
+    # if I do not use enumerate:
+    # i = 0
+    # app.nodes = []
+    # for char in app.freq_table:
+    #     freq = app.freq_table[char]
+    #     app.nodes.append(huffman_tree.Node(char, freq, x=50 + i * 100, y=400))
+    #     i += 1
     app.nodes = [huffman_tree.Node(char, freq, x=50 + i * 100, y=400) for i, (char, freq) in enumerate(app.freq_table.items())]
     app.drag_node = None
     app.merge_candidate = None
@@ -55,6 +63,13 @@ def draw_tree(app, node, x, y, offset=100):
 def perform_merge(app):
     if app.drag_node and app.merge_candidate:
         left, right = sorted([app.drag_node, app.merge_candidate], key=lambda x: x.freq)
+        """
+        it's same with 
+        if app.drag_node.freq <= app.merge_candidate.freq:
+            left, right = app.drag_node, app.merge_candidate
+        else:
+            left, right = app.merge_candidate, app.drag_node
+        """
         merged_node = huffman_tree.Node(None, left.freq + right.freq, (left.x + right.x) // 2, (left.y + right.y) // 2 - 50)
         merged_node.left = left
         merged_node.right = right
