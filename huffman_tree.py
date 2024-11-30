@@ -2,7 +2,7 @@ from cmu_graphics import *
 
 class Node:
     # Node class represents each character and its frequency in the Huffman tree
-    def __init__(self,char,freq,x=0, y = 0):
+    def __init__(self,char,freq,x=0, y=0):
         self.char =char
         self.freq = freq
         self.left = None
@@ -24,7 +24,7 @@ def build_frequency_table(text):
 # build Huffman tree
 def build_huffman_tree(frequency):
     # create a list of nodes for each character and its frequency
-    nodes = [Node(char,freq) for char,freq in frequency.items()]
+    nodes = [Node(char, frequency[char]) for char in frequency]
     # keep combining nodes until the root (one node) is left
     while len(nodes) >1:
         nodes.sort()
@@ -90,36 +90,36 @@ def huffman_decode(binary_code, root):
             curr_node = root # go back to root for next character
     return decode_text
 
-# Test
-text = "electricalengineering"
+# # Test
+# text = "electricalengineering"
 
-# Step 1: Build Frequency Table
-frequency = build_frequency_table(text)
-print("Frequency Table:")
-print(frequency)
+# # Step 1: Build Frequency Table
+# frequency = build_frequency_table(text)
+# print("Frequency Table:")
+# print(frequency)
 
-# Step 2: Build Huffman Tree
-root = build_huffman_tree(frequency)
+# # Step 2: Build Huffman Tree
+# root = build_huffman_tree(frequency)
 
-# Step 3: Generate Huffman Codes
-codes = generate_huffman_codes(root)
-print("\nGenerated Huffman Codes:")
-for char, code in codes.items():
-    print(f"'{char}': {code}")
+# # Step 3: Generate Huffman Codes
+# codes = generate_huffman_codes(root)
+# print("\nGenerated Huffman Codes:")
+# for char, code in codes.items():
+#     print(f"'{char}': {code}")
 
-# Step 4: Encode the Text
-encoded_text = huffman_encode(text, codes)
-print("\nEncoded Text:")
-print(encoded_text)
+# # Step 4: Encode the Text
+# encoded_text = huffman_encode(text, codes)
+# print("\nEncoded Text:")
+# print(encoded_text)
 
-# Step 5: Decode the Encoded Text
-decoded_text = huffman_decode(encoded_text, root)
-print("\nDecoded Text:")
-print(decoded_text)
+# # Step 5: Decode the Encoded Text
+# decoded_text = huffman_decode(encoded_text, root)
+# print("\nDecoded Text:")
+# print(decoded_text)
 
-# Verification
-print("\nVerification:")
-if decoded_text == text:
-    print("Success: The decoded text matches the original text.")
-else:
-    print("Error: The decoded text does not match the original text.")
+# # Verification
+# print("\nVerification:")
+# if decoded_text == text:
+#     print("Success: The decoded text matches the original text.")
+# else:
+#     print("Error: The decoded text does not match the original text.")
