@@ -1,6 +1,8 @@
 from cmu_graphics import *
 import BFS
 import random
+import huffman_tree_game
+
 def getGameState(app):
     return app.winMessage
 
@@ -17,25 +19,39 @@ def buildGraph(app):
     return graph
 
 def onAppStart(app):
-    app.bg2 = "WechatIMG4218.jpg" # citation
+    huffman_tree_game.onAppStart(app)
+
+    app.box_image = "IMG_2619.PNG" # citation: http://xhslink.com/a/iksJYiyVbnQ0
+    app.pos_image = "IMG_2646.PNG" # citation: http://xhslink.com/a/2KfFN1pzsYP0
+
+    app.startScreen = True
     app.gameOver = False
     app.winMessage = None
-    app.hintMessage = None
 
-    app.boardSize = 15
-    app.cellSize = 52
-    app.width = app.boardSize * app.cellSize
-    app.height = app.boardSize * app.cellSize
+    app.characterPackage = [] # store the player clicked char
+    app.selectedWord = [] # store player choose chars
 
-    app.targetWord = "electricalengineering"
+def setupLevel(app,level):
+    if level == 1:
+        app.boardSize = 5
+        app.cost = 55
+    elif level == 2:
+        app.boardSize = 6
+        app.cost = 60
+    elif level == 3:
+        app.boardSize = 7
+        app.cost = 80
+
+    app.cellSize = 750 // app.boardSize
+
+    app.targetWord = huffman_tree_game.gettext(app)#"electricalengineering"
     app.graphNodes = list(app.targetWord)
     app.randomCharacters = [chr(random.randint(97, 122)) for _ in range(app.boardSize**2 - len(app.graphNodes))]
     app.board = random.sample(app.graphNodes + app.randomCharacters, app.boardSize**2) # store characters
     
-    startIndex = app.board.index('e')
+    startIndex = app.board.index(app.targetWord[0])
     app.playerPos = (startIndex // app.boardSize, startIndex % app.boardSize)
 
-    app.cost = 120
     app.foundChars = []
     app.path = []
     app.graph = buildGraph(app) # store positions
@@ -45,68 +61,101 @@ def onAppStart(app):
     app.currentCharIndex = 0
 
 def onMousePress(app, mouseX, mouseY):
-    if app.gameOver:
-        return
+    huffman_tree_game.onMousePress(app,mouseX,mouseY)
+    if app.startScreen:
+        if 100 <= mouseX <= 200 and 150 <= mouseY <= 200:
+            setupLevel(app, 1)  # Level 1
+            app.startScreen = False
+        elif 250 <= mouseX <= 350 and 150 <= mouseY <= 200:
+            setupLevel(app, 2)  # Level 2
+            app.startScreen = False
+        elif 400 <= mouseX <= 500 and 150 <= mouseY <= 200:
+            setupLevel(app, 3)  # Level 3
+            app.startScreen = False
+    elif app.gameOver:
+        # Restart button
+        if 500 <= mouseX <= 600 and app.height - 60 <= mouseY <= app.height - 20:
+            onAppStart(app)  # Restart the game
+    else:
+        col = mouseX // app.cellSize
+        row = mouseY // app.cellSize
+        newPos = (row, col)
 
-    col = mouseX // app.cellSize
-    row = mouseY // app.cellSize
-    newPos = (row, col)
+        if newPos in app.graph and app.cost > 0:
+            level, parent = BFS.bfs(app.graph, app.playerPos)
+            path_to_new_pos = BFS.find_shortest_path(parent, app.playerPos, newPos)
+            if path_to_new_pos:
+                cost_to_move = len(path_to_new_pos) - 1  # cost is equal to the number of edges
+                if app.cost >= cost_to_move:
+                    app.playerPos = newPos
+                    app.cost -= cost_to_move
+                    char = app.board[row * app.boardSize + col]
+                    if len(app.foundChars) < len(app.targetWord) and char == app.targetWord[len(app.foundChars)]:
+                        app.foundChars.append(char)
+                        app.currentCharIndex += 1
+                    app.characterPackage.append(char)  # Add character to package
 
-    if newPos in app.graph and app.cost > 0:
-        level, parent = BFS.bfs(app.graph, app.playerPos)
-        path_to_new_pos = BFS.find_shortest_path(parent, app.playerPos, newPos)
-        if path_to_new_pos:
-            cost_to_move = len(path_to_new_pos) - 1  # cost is equal to the number of edges
-            if app.cost >= cost_to_move:
-                app.playerPos = newPos
-                app.cost -= cost_to_move
-                char = app.board[row * app.boardSize + col]
-                if char == app.targetWord[len(app.foundChars)]:
-                    app.foundChars.append(char)
-                    app.currentCharIndex += 1
+        if app.cost <= 0 and not app.gameOver:
+            app.winMessage = "Out of money! Game Over. Restart"
+            app.gameOver = True
+        
+        # Click on the character package to select a character to form the word
+        packageY = 60
+        packageStartX = 950
+        if packageY - 20 <= mouseY <= packageY + 20:
+            for i, char in enumerate(app.characterPackage):
+                charX = packageStartX + i * 20
+                if charX - 10 <= mouseX <= charX + 10:
+                    app.selectedWord.append(char)
+                    break
 
-                if ''.join(app.foundChars) == app.targetWord:
-                    app.winMessage = "You win!"
-                    app.gameOver = True
+        if ''.join(app.selectedWord) == app.targetWord:
+            app.winMessage = "You win!"
+            app.gameOver = True
 
-    if app.cost <= 0 and not app.gameOver:
-        app.winMessage = "Out of money! Game Over."
-        app.gameOver = True
+        # remove the last selected character
+        undoBoxX = 700
+        undoBoxY = app.height - 60
+        if undoBoxX <= mouseX <= undoBoxX + 80 and undoBoxY - 20 <= mouseY <= undoBoxY + 20:
+            if app.selectedWord:
+                app.selectedWord.pop()
 
 def onKeyPress(app, key):
-    if key == 'h' and not app.gameOver:
-        app.hintMessage = "Press 'n' for the next shortest path or 'w' for the whole shortest path."
-    elif key == 'n' and not app.gameOver:
-        app.currentHint = []
-        if len(app.foundChars) < len(app.targetWord):
-            char = app.targetWord[len(app.foundChars)]
-            min_distance = float('inf')
-            goal = None
+    if app.startScreen:
+        huffman_tree_game.onKeyPress(app, key)
 
-            # Find the closest character matching the next target
-            for pos, boardChar in enumerate(app.board):
-                if boardChar == char:
-                    row, col = (pos // app.boardSize, pos % app.boardSize)
-                    level, p = BFS.bfs(app.graph, app.playerPos)
-                    if (row, col) in level and level[(row, col)] < min_distance:
-                        min_distance = level[(row, col)]
-                        goal = (row, col)
+    elif not app.gameOver:
+        huffman_tree_game.onKeyPress(app, key)
+        if key == 'n' and not app.gameOver:
+            app.currentHint = []
+            if len(app.foundChars) < len(app.targetWord):
+                char = app.targetWord[len(app.foundChars)]
+                min_distance = float('inf')
+                goal = None
 
-            if goal:
-                level, parent = BFS.bfs(app.graph, app.playerPos)
-                app.currentHint = BFS.find_shortest_path(parent, app.playerPos, goal)
-                app.hintActive = True
+                # Find the closest character matching the next target
+                for pos, boardChar in enumerate(app.board):
+                    if boardChar == char:
+                        row, col = (pos // app.boardSize, pos % app.boardSize)
+                        level, p = BFS.bfs(app.graph, app.playerPos)
+                        if (row, col) in level and level[(row, col)] < min_distance:
+                            min_distance = level[(row, col)]
+                            goal = (row, col)
 
-    elif key == 'w' and not app.gameOver:
-        # Show the whole shortest path to find the entire target word
-        app.currentHint, app.charPositions = find_whole_shortest_path(app.graph, app.board, app.playerPos, app.targetWord)
-        app.hintActive = True
-        app.currentCharIndex = 0
-    elif key == 'space' and app.hintActive and app.currentCharIndex < len(app.charPositions) - 1:
-        # Increment the current character index to highlight the next character in the path
-        app.currentCharIndex += 1
-    elif key == "r":
-        onAppStart(app)
+                if goal:
+                    level, parent = BFS.bfs(app.graph, app.playerPos)
+                    app.currentHint = BFS.find_shortest_path(parent, app.playerPos, goal)
+                    app.hintActive = True
+
+        elif key == 'w' and not app.gameOver:
+            # Show the whole shortest path to find the entire target word
+            app.currentHint, app.charPositions = find_whole_shortest_path(app.graph, app.board, app.playerPos, app.targetWord)
+            app.hintActive = True
+            app.currentCharIndex = 0
+
+        elif key == 'space' and app.hintActive and app.currentCharIndex < len(app.charPositions) - 1:
+            # Increment the current character index to highlight the next character in the path
+            app.currentCharIndex += 1
 
 
 def find_whole_shortest_path(graph, board, start_pos, target_word):
@@ -131,30 +180,63 @@ def find_whole_shortest_path(graph, board, start_pos, target_word):
     return full_path, char_pos
 
 def redrawAll(app):
-    drawImage(app.bg2,0,0,width = 1800,height = 1100)
-    for row in range(app.boardSize):
-        for col in range(app.boardSize):
-            left = col * app.cellSize
-            top = row * app.cellSize
-            char = app.board[row * app.boardSize + col]
-            if (row, col) == app.playerPos and not app.gameOver:
-                fill = 'blue'
-            elif (row, col) in app.currentHint and app.hintActive:
-                if app.currentCharIndex >= 0 and app.currentCharIndex < len(app.charPositions) and (row, col) == app.charPositions[app.currentCharIndex]:
-                    fill = 'green'  # Highlight the next character in the path in green
-                else:
-                    fill = 'yellow'  # Highlight the path in yellow
-            else:
-                fill = 'lightGray'
-            drawRect(left, top, app.cellSize, app.cellSize, fill=fill, border='black')
-            drawLabel(char, left + app.cellSize / 2, top + app.cellSize / 2, size=16, bold=True)
-    
-    drawLabel(f'Cost: ${app.cost}', app.width - 80, 20, size=16, bold=True)
-    if app.winMessage:
-        drawLabel(app.winMessage, 1000, 650, size=20, align='center', fill='purple')
+    huffman_tree_game.redrawAll(app)
+    if app.startScreen:
+        drawLabel('Select Difficulty Level', 300, 50, size=30, align='center', bold=True)
+        drawRect(100, 150, 100, 50, fill='lightBlue', border='black')
+        drawLabel('level 1', 150, 175, size=20, align='center')
+        drawRect(250, 150, 100, 50, fill='lightGreen', border='black')
+        drawLabel('level 2', 300, 175, size=20, align='center')
+        drawRect(400, 150, 100, 50, fill='lightCoral', border='black')
+        drawLabel('level 3', 450, 175, size=20, align='center')
 
-    if app.hintMessage:
-        drawLabel(app.hintMessage, 1200, 750, size=20, fill='black')
+        drawRect(100, 230, 400, 50, fill='pink', border='black')
+        drawLabel('From level 1 to 3, the number of islands increases.', 300, 255, size=15, align='center')
+    else:
+        for row in range(app.boardSize):
+            for col in range(app.boardSize):
+                left = col * app.cellSize
+                top = row * app.cellSize
+                char = app.board[row * app.boardSize + col]
+
+                # Draw the background image for the cell
+                drawImage(app.box_image, left, top, width=app.cellSize, height=app.cellSize)
+
+                if (row, col) == app.playerPos and not app.gameOver:
+                    player_left = app.playerPos[1] * app.cellSize
+                    player_top = app.playerPos[0] * app.cellSize
+                    drawImage(app.pos_image, player_left, player_top, width=app.cellSize/2, height=app.cellSize/2)
+                elif (row, col) in app.currentHint and app.hintActive:
+                    if app.currentCharIndex >= 0 and app.currentCharIndex < len(app.charPositions) and (row, col) == app.charPositions[app.currentCharIndex]:
+                        border_color = 'green'  # Highlight the next character in the path in green
+                    else:
+                        border_color = 'yellow'  # Highlight the path in yellow
+                    drawRect(left, top, app.cellSize, app.cellSize, fill=None, border=border_color, borderWidth=5)  # Increase borderWidth for visibility
+                drawLabel(char, left + app.cellSize / 2, top + app.cellSize / 2, size=16, bold=True)
+
+
+        drawLabel(f'HP: {app.cost}', app.width - 80, 20, size=16, bold=True)
+        if app.winMessage:
+            drawLabel(app.winMessage, 1000, app.height-20, size=20, align='center', fill='black')
+
+        drawLabel("Press 'n' for the next shortest path or 'w' for the whole shortest path.", 1200, 40, size=20, fill='yellow')
+        # Draw the character package at the bottom of the screen
+        drawLabel("Collected Characters:", 850, 60, size=16, bold=True, fill='blue')
+        for i, char in enumerate(app.characterPackage):
+            drawLabel(char, 950 + i * 20, 60, size=16, bold=True, fill='black')
+
+        # Draw the currently selected word
+        drawLabel("Selected Word:", 850, 80, size=16, bold=True, fill='green')
+        drawLabel(''.join(app.selectedWord),1200, 80, size=16, bold=True, fill='black')
+
+        # Draw the undo box
+        drawRect(700, app.height - 60, 80, 40, fill='lightPink', border='black')
+        drawLabel("Undo", 740, app.height - 40, size=16, bold=True, fill='black')
+
+        if app.gameOver:
+            drawRect(500, app.height - 60, 100, 40, fill='lightGreen', border='black')
+            drawLabel("Restart", 550, app.height - 40, size=16, bold=True, fill='black')
+
 
 # def main():
 #     runApp()

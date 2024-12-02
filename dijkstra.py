@@ -1,3 +1,6 @@
+### citation (notes): not copying codes, just learning from the website: 
+# https://medium.com/basecs/finding-the-shortest-path-with-a-little-help-from-dijkstra-613149fbdc8e
+
 def initialize_single_source(graph,start):
     # the distance initially to all nodes unknown -- infinity
     distances = {vertex: float('inf') for vertex in graph} 
@@ -18,11 +21,16 @@ def relax(u, v, weight, distances, predecessors, q):
 def dijkstra(graph,start):
     # initialize
     distances, predecessors = initialize_single_source(graph, start)
-    q = [(0,start)] #(distance,node)
+    q = [(0,start)] #(distance,node) a list of tuples
     visited = set()
 
     while q:
         # Sort the q to get the node with the smallest distance.
+        # citation: learned how to use key = lambda x: from https://docs.python.org/3/howto/sorting.html
+        # also can write :
+        # def get_first_element(x):
+        #     return x[0]
+        # q.sort(key=get_first_element)
         q.sort(key=lambda x: x[0])
         current_distance, u = q.pop(0)
         
@@ -32,7 +40,8 @@ def dijkstra(graph,start):
         visited.add(u)
         
         # Iterate over all adjacent nodes and relax the edges.
-        for v, weight in graph[u].items():
+        for v, weight in graph[u].items(): # already cited in huffman_tree_game: 
+            # I learned from https://www.w3schools.com/python/ref_dictionary_items.asp
             if v not in visited:
                 relax(u, v, weight, distances, predecessors, q)
                 
@@ -49,7 +58,7 @@ def find_shortest_path(predecessors, target):
     path.reverse()
     return path
 
-# suda-code
+# code
 # def hint_node_to_node(graph, start, end):
 #     """Provides the shortest path between two nodes."""
 #     d, preds = dijkstra(graph, start)
