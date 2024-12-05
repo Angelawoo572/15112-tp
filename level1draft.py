@@ -2,6 +2,7 @@ from cmu_graphics import *
 import BFS
 import random
 import huffman_tree_game
+import math
 
 def getGameState(app):
     return app.winMessage
@@ -146,17 +147,13 @@ def onKeyPress(app, key):
                     level, parent = BFS.bfs(app.graph, app.playerPos)
                     app.currentHint = BFS.find_shortest_path(parent, app.playerPos, goal)
                     app.hintActive = True
+                    app.currentCharIndex = len(app.currentHint) - 1
 
         elif key == 'w' and not app.gameOver:
             # Show the whole shortest path to find the entire target word
             app.currentHint, app.charPositions = find_whole_shortest_path(app.graph, app.board, app.playerPos, app.targetWord)
             app.hintActive = True
             app.currentCharIndex = 0
-
-        elif key == 'space' and app.hintActive and app.currentCharIndex < len(app.charPositions) - 1:
-            # Increment the current character index to highlight the next character in the path
-            app.currentCharIndex += 1
-
 
 def find_whole_shortest_path(graph, board, start_pos, target_word):
     curr_pos = start_pos
@@ -166,8 +163,7 @@ def find_whole_shortest_path(graph, board, start_pos, target_word):
     for char in target_word:
         if char in board:
             pos = board.index(char)
-            row, col = pos // len(board) ** 0.5, pos % len(board) ** 0.5
-            row, col = int(row), int(col)
+            row, col = int(pos // len(board) ** 0.5), int(pos % len(board) ** 0.5)
             goal = (row, col)
 
             level, parent = BFS.bfs(graph, curr_pos)
@@ -204,12 +200,22 @@ def redrawAll(app):
                     if app.currentCharIndex >= 0 and app.currentCharIndex < len(app.charPositions) and (row, col) == app.charPositions[app.currentCharIndex]:
                         fill = 'green'  # Highlight the next character in the path in green
                     else:
-                        fill = 'yellow'  # Highlight the path in yellow
+                        fill = 'lightGray'
                 else:
                     fill = 'lightGray'
                 drawRect(left, top, app.cellSize, app.cellSize, fill=fill, border='black')
                 drawLabel(char, left + app.cellSize / 2, top + app.cellSize / 2, size=16, bold=True)
 
+        # Draw arrows to indicate the path
+        if app.hintActive:
+            for i in range(len(app.currentHint) - 1):
+                start = app.currentHint[i]
+                end = app.currentHint[i + 1]
+                startX = start[1] * app.cellSize + app.cellSize / 2
+                startY = start[0] * app.cellSize + app.cellSize / 2
+                endX = end[1] * app.cellSize + app.cellSize / 2
+                endY = end[0] * app.cellSize + app.cellSize / 2
+                drawLine(startX, startY, endX, endY, fill='red', lineWidth=2, arrowEnd=True)
 
         drawLabel(f'HP: {app.cost}', app.width - 80, 20, size=16, bold=True)
         if app.winMessage:
@@ -233,8 +239,8 @@ def redrawAll(app):
             drawRect(500, app.height - 60, 100, 40, fill='lightGreen', border='black')
             drawLabel("Restart", 550, app.height - 40, size=16, bold=True, fill='black')
 
-
 def main():
     runApp()
 
 main()
+
