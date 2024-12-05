@@ -226,16 +226,17 @@ def redrawAll(app):
             row, col = node
             x, y = col * app.cellSize + app.cellSize // 2, row * app.cellSize + app.cellSize // 2
 
-            # Draw edges (lines) connecting nodes with shorter length
+            # Draw edges (images) connecting nodes
             for neighbor in neighbors:
                 n_row, n_col = neighbor
                 n_x, n_y = n_col * app.cellSize + app.cellSize // 2, n_row * app.cellSize + app.cellSize // 2
 
-                # Shorten the line length by moving closer to the starting point
-                line_factor = 0.5  # Reduce the length of the line to 50% of its original length
-                new_x = x + (n_x - x) * line_factor
-                new_y = y + (n_y - y) * line_factor
-                drawLine(x, y, new_x, new_y, fill='black')
+                # Determine the direction of the road image
+                if row == n_row:  # Horizontal road
+                    drawImage(app.road_image, min(x, n_x), y - app.cellSize // 4, width=abs(x - n_x), height=app.cellSize // 2)
+                elif col == n_col:  # Vertical road
+                    drawImage(app.road_image, x - app.cellSize // 8, min(y, n_y) + 30, width=app.cellSize // 3, height=abs(y - n_y)//1.5,rotateAngle = 110)
+
 
         if app.weightHintActive and not app.gameOver:
             weight_pos = set()
@@ -258,9 +259,8 @@ def redrawAll(app):
             box_size = (app.cellSize * 3) // 4  # Increase the box size to 3/4 of cell size
             box_left = x - box_size // 2
             box_top = y - box_size // 2
-            fill_color = 'lightGray'
-            border_color = 'black'
-            border_width = 1
+            border_color = None
+            drawImage(app.box_image, x - box_size // 2, y - box_size // 2, width=box_size, height=box_size)
 
             # Change the border color for hints
             if app.hintActive and app.currentHint:
@@ -274,7 +274,7 @@ def redrawAll(app):
                         border_color = 'green'
                         border_width = 3
 
-            drawRect(box_left, box_top, box_size, box_size, fill=fill_color, border=border_color, borderWidth=border_width)
+            drawRect(box_left, box_top, box_size, box_size, fill=None, border=border_color, borderWidth=2)
 
             # Change the fill color if the player is at this node
             if (row, col) == app.playerPos and not app.gameOver:
@@ -293,7 +293,7 @@ def redrawAll(app):
                 startY = start[0] * app.cellSize + app.cellSize / 2
                 endX = end[1] * app.cellSize + app.cellSize / 2
                 endY = end[0] * app.cellSize + app.cellSize / 2
-                drawLine(startX, startY, endX, endY, fill='green', lineWidth=2, arrowEnd=True)
+                drawLine(startX, startY, endX, endY, fill='yellow', lineWidth=2, arrowEnd=True)
 
         # Draw the character in the box (after everything else to ensure it is on top)
         for node in app.graph:
@@ -301,14 +301,6 @@ def redrawAll(app):
             x, y = col * app.cellSize + app.cellSize // 2, row * app.cellSize + app.cellSize // 2
             char = app.board[row * app.boardSize + col]
             drawLabel(char, x, y, size=20, bold=True)
-
-
-
-
-
-
-
-
 
         drawLabel(f'HP: {app.cost}', app.width - 80, 20, size=16, bold=True)
 
@@ -335,8 +327,8 @@ def redrawAll(app):
             drawLabel("Restart", 550, app.height - 40, size=16, bold=True, fill='black')
 
 
-def main():
-    runApp()
+# def main():
+#     runApp()
 
 
-main()
+# main()
