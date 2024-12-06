@@ -1,6 +1,13 @@
 from cmu_graphics import *
+from PIL import Image
 import graph_game_level1
 import graph_game_level2
+import huffman_tree_game
+
+def getCmuImage(path):
+    pilImage = Image.open(path)
+    cmuImage = CMUImage(pilImage)
+    return cmuImage
 
 def onAppStart(app):
     app.stepCount = 0
@@ -15,17 +22,17 @@ def onAppStart(app):
     ]
     app.walkerIndex = 0
 
-    app.image_player = "IMG_2591.PNG" # citation: http://xhslink.com/a/2KfFN1pzsYP0
-    app.image_person = "IMG_2593.PNG" # citation: http://xhslink.com/a/j9syk8NQGYP0
-    app.image_rescue1 = "IMG_2595.PNG" # citation for rescue1234: http://xhslink.com/a/eSq0dwgFAYP0
-    app.image_rescue2 = "IMG_2628.PNG"
-    app.image_rescue3 = "IMG_2597.PNG"
-    app.image_rescue4 = "IMG_2629.PNG"
-    app.image_end = "IMG_2610.PNG" # citation: http://xhslink.com/a/2KfFN1pzsYP0
+    app.image_player = getCmuImage("IMG_2591.PNG") # citation: http://xhslink.com/a/2KfFN1pzsYP0 getCmuImage
+    app.image_person = getCmuImage("IMG_2593.PNG") # citation: http://xhslink.com/a/j9syk8NQGYP0
+    app.image_rescue1 = getCmuImage("IMG_2595.PNG")# citation for rescue1234: http://xhslink.com/a/eSq0dwgFAYP0
+    app.image_rescue2 = getCmuImage("IMG_2628.PNG")
+    app.image_rescue3 = getCmuImage("IMG_2597.PNG")
+    app.image_rescue4 = getCmuImage("IMG_2629.PNG")
+    app.image_end = getCmuImage("IMG_2610.PNG") # citation: http://xhslink.com/a/2KfFN1pzsYP0
 
-    app.image_die = "IMG_2604.PNG" # citation: http://xhslink.com/a/PCQdSH05LYP0
+    app.image_die = getCmuImage("IMG_2604.PNG") # citation: http://xhslink.com/a/PCQdSH05LYP0
 
-    app.bg1 = "WechatIMG4237 1.06.25 AM.jpg" # citation: http://xhslink.com/a/a2qAJVdoTYP0
+    app.bg1 = getCmuImage("WechatIMG4237 1.06.25 AM.jpg") # citation: http://xhslink.com/a/a2qAJVdoTYP0
 
     app.message = "Welcome to the Tower of Cipher Breaking!"
 
@@ -64,7 +71,8 @@ def start_redrawAll(app):
     drawLabel("Objective:", 900, 460, size=24, bold=True, fill='black')
     drawLabel("Rescue the Person: Solve puzzles and navigate levels to save them.", 900, 500, size=20, fill='black')
     drawLabel("Score Points: Earn points by solving puzzles. Reach 30 points to rescue the person!", 900, 530, size=20, fill='black')
-    drawLabel("Press space to begin!", 900, 580, size=26, bold=True, fill='black')
+    drawLabel("In the creation Mode, you can input the words to add to dictionary", 900, 560, size=20, fill='black')
+    drawLabel("Press space to begin!", 900, 600, size=26, bold=True, fill='black')
 
 def start_onKeyPress(app, key):
     if key == 'space':
@@ -170,11 +178,11 @@ def rescue_redrawAll(app):
     drawRect(150, 770, 200, 60, fill='lightblue', border='black')
     drawLabel("Choose Level 1", 250, 800, size=25, fill='black')
 
-    drawRect(650, 770, 200, 60, fill='lightblue', border='black')
-    drawLabel("Choose Level 2", 750, 800, size=25, fill='black')
+    # drawRect(650, 770, 200, 60, fill='lightblue', border='black')
+    # drawLabel("Choose Level 3", 750, 800, size=25, fill='black')
 
-    # drawRect(1150, 770, 200, 60, fill='lightblue', border='black')
-    # drawLabel("Choose Level 3", 1250, 800, size=25, fill='black')
+    drawRect(1150, 770, 200, 60, fill='lightblue', border='black')
+    drawLabel("Choose Level 2", 1250, 800, size=25, fill='black')
 
 def rescue_onMouseMove(app, mouseX, mouseY):
     # Update player position to follow the mouse
@@ -186,15 +194,18 @@ def rescue_onMousePress(app, mouseX, mouseY):
     if 150 < mouseX < 350 and 770 < mouseY < 830:
         setActiveScreen('level1')
     
-    elif 650 < mouseX < 850 and 770 < mouseY < 830:
-        setActiveScreen('level2')
-
-    # elif 1150 < mouseX < 1350 and 770 < mouseY < 830:
+    # elif 650 < mouseX < 850 and 770 < mouseY < 830:
     #     setActiveScreen('level3')
+
+    elif 1150 < mouseX < 1350 and 770 < mouseY < 830:
+        setActiveScreen('level2')
 
 ############################################################
 # level1 Screen
 ############################################################
+def level1_onStep(app):
+    huffman_tree_game.onStep(app)
+
 def level1_onScreenActivate(app):
     graph_game_level1.onAppStart(app)
     # Reset the score every time we enter the Huffman room
@@ -203,14 +214,15 @@ def level1_onScreenActivate(app):
 
 def level1_redrawAll(app):
     drawImage(app.bg1, 0, 0, width=1800, height=1100)
-    drawLabel(f"{app.score}",950,100,size=16, bold=True, fill='black')
+    drawLabel(f"Score: {app.score}",950,100,size=16, bold=True, fill='black')
     graph_game_level1.redrawAll(app)
     if app.score == 10:
         drawImage(app.image_rescue2, 0, app.height-350, width=300, height=350)
     elif app.score == 20:
         drawImage(app.image_rescue3, 0, app.height-350, width=300, height=350)
     elif app.score == 30:
-        drawLabel("Congratulations! You rescue the person. Press r",800,850,fill = "yellow")
+        drawRect(750, 830, 500, 50, fill='blue', border='black', borderWidth=2)
+        drawLabel("Congratulations! You rescue the person. Press r", 1000, 855, fill='yellow', size=20)
         drawImage(app.image_rescue4, 0, app.height-350, width=300, height=350)
     elif graph_game_level1.getGameState(app) == "Out of money! Game Over. Restart":
         drawImage(app.image_rescue1, 0, app.height-350, width=300, height=350)
@@ -242,6 +254,9 @@ def level1_onMousePress(app,mouseX,mouseY):
 ############################################################
 # level2 Screen
 ############################################################
+def level2_onStep(app):
+    huffman_tree_game.onStep(app)
+
 def level2_onScreenActivate(app):
     graph_game_level2.onAppStart(app)
     # Reset the score every time we enter the Huffman room
@@ -250,14 +265,15 @@ def level2_onScreenActivate(app):
 
 def level2_redrawAll(app):
     drawImage(app.bg1, 0, 0, width=1800, height=1100)
-    drawLabel(f"Press 1 to record your score {app.score}",950,100,size=16, bold=True, fill='black')
+    drawLabel(f"Score: {app.score}",950,100,size=16, bold=True, fill='black')
     graph_game_level2.redrawAll(app)
     if app.score == 10:
         drawImage(app.image_rescue2, 0, app.height-350, width=300, height=350)
     elif app.score == 20:
         drawImage(app.image_rescue3, 0, app.height-350, width=300, height=350)
     elif app.score == 30:
-        drawLabel("Congratulations! You rescue the person. Press r",800,850,fill = "yellow")
+        drawRect(750, 830, 500, 50, fill='blue', border='black', borderWidth=2)
+        drawLabel("Congratulations! You rescue the person. Press r", 1000, 855, fill='yellow', size=20)
         drawImage(app.image_rescue4, 0, app.height-350, width=300, height=350)
     elif graph_game_level2.getGameState(app) == "Out of money! Game Over. Restart":
         drawImage(app.image_rescue1, 0, app.height-350, width=300, height=350)
@@ -290,7 +306,6 @@ def level2_onMousePress(app,mouseX,mouseY):
 # end Screen
 ############################################################
 def end_onScreenActivate(app):
-    graph_game_level2.onAppStart(app)
     # Reset the score every time we enter the Huffman room
     if not app.endInitialized:
         app.endInitialized = True
@@ -307,9 +322,10 @@ def end_redrawAll(app):
 
 def end_onMousePress(app, mouseX, mouseY):
     if 800 <= mouseX <= 1000 and 600 <= mouseY <= 700:
+        onAppStart(app)
         setActiveScreen('start')
 
-def level1_onMouseMove(app,mouseX,mouseY):
+def end_onMouseMove(app,mouseX,mouseY):
     app.playerX = mouseX
     app.playerY = mouseY
 

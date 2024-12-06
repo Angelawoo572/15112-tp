@@ -2,6 +2,31 @@ from cmu_graphics import *
 import dijkstra
 import huffman_tree_game
 import random
+from PIL import Image
+
+def calculateInitialCost(app):
+    curr_pos = app.playerPos
+    min_cost = 0
+
+    for char in app.targetWord:
+        if char in app.board:
+            pos = app.board.index(char)
+            row, col = pos // app.boardSize, pos % app.boardSize
+            goal = (row, col)
+
+            distances, predecessors = dijkstra.dijkstra(app.graph, curr_pos)
+            if goal in distances:
+                min_cost += distances[goal]
+                curr_pos = goal
+
+    # Add a buffer to the minimum cost to allow some flexibility
+    buffer = min_cost * 0.5  # 50% extra cost buffer
+    return int(min_cost + buffer)
+
+def getCmuImage(path):
+    pilImage = Image.open(path)
+    cmuImage = CMUImage(pilImage)
+    return cmuImage
 
 def getGameState(app):
     return app.winMessage
@@ -11,19 +36,30 @@ def buildGraph(app): # weighted
     for row in range(app.boardSize):
         for col in range(app.boardSize):
             node = (row, col)
-            graph[node] = {} # store both neighboring nodes and wights of the edges
+            if node not in graph:
+                graph[node] = {} # store both neighboring nodes and wights of the edges
+            # Define all possible neighbors (up, down, left, right)
             for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                newRow, newCol = row + dr, col + dc
-                if 0 <= newRow < app.boardSize and 0 <= newCol < app.boardSize:
-                    weight = random.randint(1, 10)  # Random positive weight for each edge
-                    graph[node][(newRow, newCol)] = weight
-    return graph
+                    newRow, newCol = row + dr, col + dc
+                    if 0 <= newRow < app.boardSize and 0 <= newCol < app.boardSize:
+                        neighbor = (newRow, newCol)
+
+                        # Assign a weight if not already present in either direction
+                        if neighbor not in graph or node not in graph[neighbor]:
+                            weight = random.randint(1, 10)  # Random positive weight for each edge
+                            
+                            # Assign weight in both directions to maintain symmetry
+                            if neighbor not in graph:
+                                graph[neighbor] = {}
+                            graph[node][neighbor] = weight
+                            graph[neighbor][node] = weight
+
+    return graph # symmetric
 
 def onAppStart(app):
-    app.box_image = "IMG_2619.PNG" # citation: http://xhslink.com/a/iksJYiyVbnQ0
-    app.road_image = "IMG_2621.PNG" # citation: http://xhslink.com/a/G9LEu3TShnQ0
-    app.pos_image = "IMG_2646.PNG" # citation: http://xhslink.com/a/2KfFN1pzsYP0
-
+    app.box_image = getCmuImage("IMG_2619.PNG") # citation: http://xhslink.com/a/iksJYiyVbnQ0
+    app.road_image = getCmuImage("IMG_2621.PNG") # citation: http://xhslink.com/a/G9LEu3TShnQ0
+    app.pos_image = getCmuImage("IMG_2646.PNG") # citation: http://xhslink.com/a/2KfFN1pzsYP0
 
     huffman_tree_game.onAppStart(app)
     app.startScreen = True
@@ -36,13 +72,13 @@ def onAppStart(app):
 def setupLevel(app,level):
     if level == 1:
         app.boardSize = 5
-        app.cost = 150
+        app.cost = 800
     elif level == 2:
         app.boardSize = 6
-        app.cost = 250
+        app.cost = 800
     elif level == 3:
         app.boardSize = 7
-        app.cost = 500
+        app.cost = 800
 
     app.cellSize = 750 // app.boardSize
 
@@ -62,6 +98,10 @@ def setupLevel(app,level):
     app.hintActive = False
     app.weightHintActive = False
     app.currentCharIndex = 0
+
+    app.hintType = None
+    # Calculate minimum cost to reach all nodes of the target word
+    app.cost = calculateInitialCost(app)
 
 def onMousePress(app, mouseX, mouseY):
     huffman_tree_game.onMousePress(app,mouseX,mouseY)
@@ -84,19 +124,24 @@ def onMousePress(app, mouseX, mouseY):
         row = mouseY // app.cellSize
         newPos = (row, col)
 
+         # Check if new position is valid and player has enough cost to move
         if newPos in app.graph and app.cost > 0:
             distances, predecessors = dijkstra.dijkstra(app.graph, app.playerPos)
-            path_to_new_pos = dijkstra.find_shortest_path(predecessors, newPos)
-            if path_to_new_pos:
-                cost_to_move = sum(app.graph[path_to_new_pos[i]][path_to_new_pos[i + 1]] for i in range(len(path_to_new_pos) - 1))
-                if app.cost >= cost_to_move:
-                    app.playerPos = newPos
-                    app.cost -= cost_to_move
-                    char = app.board[row * app.boardSize + col]
-                    if len(app.foundChars) < len(app.targetWord) and char == app.targetWord[len(app.foundChars)]:
-                        app.foundChars.append(char)
-                        app.currentCharIndex += 1
-                    app.characterPackage.append(char)  # Add character to package
+            if newPos in distances:
+                path_to_new_pos = dijkstra.find_shortest_path(predecessors, newPos)
+                if path_to_new_pos:
+                    cost_to_move = sum(app.graph[path_to_new_pos[i]][path_to_new_pos[i + 1]] for i in range(len(path_to_new_pos) - 1))
+
+                    if app.cost >= cost_to_move:
+                        app.playerPos = newPos
+                        app.cost -= cost_to_move
+                        char = app.board[row * app.boardSize + col]
+                        
+                        # Update found characters and character package
+                        if len(app.foundChars) < len(app.targetWord) and char == app.targetWord[len(app.foundChars)]:
+                            app.foundChars.append(char)
+                            app.currentCharIndex += 1
+                        app.characterPackage.append(char)
 
         if app.cost <= 0 and not app.gameOver:
             app.winMessage = "Out of money! Game Over. Restart"
@@ -107,6 +152,7 @@ def onMousePress(app, mouseX, mouseY):
         packageStartX = 950
         if packageY - 20 <= mouseY <= packageY + 20:
             for i, char in enumerate(app.characterPackage):
+                # citation Note: learned from the website: https://www.geeksforgeeks.org/enumerate-in-python/
                 charX = packageStartX + i * 20
                 if charX - 10 <= mouseX <= charX + 10:
                     app.selectedWord.append(char)
@@ -137,6 +183,7 @@ def onKeyPress(app,key):
 
                 # Find the closest character matching the next target
                 for pos, boardChar in enumerate(app.board):
+                    # citation Note: learned from the website: https://www.geeksforgeeks.org/enumerate-in-python/
                     if boardChar == char:
                         row, col = (pos // app.boardSize, pos % app.boardSize)
                         distances, predecessors = dijkstra.dijkstra(app.graph, app.playerPos)
@@ -148,15 +195,14 @@ def onKeyPress(app,key):
                     distances, predecessors = dijkstra.dijkstra(app.graph, app.playerPos)
                     app.currentHint = dijkstra.find_shortest_path(predecessors, goal)
                     app.hintActive = True
+                    app.hintType = 'n'
 
         elif key == 'w' and not app.gameOver:
             # Show the whole shortest path to find the entire target word
             app.currentHint,app.charPositions= hint_whole_graph(app.graph, app.playerPos, app.targetWord,app.board)
             app.hintActive = True
             app.currentCharIndex = 0
-        elif key == 'space' and app.hintActive and app.currentCharIndex < len(app.charPositions) - 1:
-            # Increment the current character index to highlight the next character in the path
-            app.currentCharIndex += 1
+            app.hintType = 'w'
         elif key == 'v' and not app.gameOver:
             # Activate weight hint
             app.weightHintActive = not app.weightHintActive
@@ -196,42 +242,91 @@ def redrawAll(app):
         drawRect(100, 230, 400, 50, fill='pink', border='black')
         drawLabel('From level 1 to 3, the number of islands increases.', 300, 255, size=15, align='center')
     else:
-        for row in range(app.boardSize):
-            for col in range(app.boardSize):
-                left = col * app.cellSize
-                top = row * app.cellSize
-                char = app.board[row * app.boardSize + col]
-                # Draw the background image for the cell
-                drawImage(app.box_image, left, top, width=app.cellSize, height=app.cellSize)
+        # Draw the nodes (boxes) and edges (lines)
+        for node, neighbors in app.graph.items(): # citation: I learned from https://www.w3schools.com/python/ref_dictionary_items.asp
+            row, col = node
+            x, y = col * app.cellSize + app.cellSize // 2, row * app.cellSize + app.cellSize // 2
 
-                if (row, col) == app.playerPos and not app.gameOver:
-                    player_left = app.playerPos[1] * app.cellSize
-                    player_top = app.playerPos[0] * app.cellSize
-                    drawImage(app.pos_image, player_left, player_top, width=app.cellSize/2, height=app.cellSize/2)
-                elif (row, col) in app.currentHint and app.hintActive:
-                    if app.currentCharIndex >= 0 and app.currentCharIndex < len(app.charPositions) and (row, col) == app.charPositions[app.currentCharIndex]:
-                        border_color = 'green'  # Highlight the next character in the path in green
-                    else:
-                        border_color = 'yellow'  # Highlight the path in yellow
-                    drawRect(left, top, app.cellSize, app.cellSize, fill=None, border=border_color, borderWidth=5)  # Increase borderWidth for visibility
-                drawLabel(char, left + app.cellSize / 2, top + app.cellSize / 2, size=16, bold=True)
+            # Draw edges (images) connecting nodes
+            for neighbor in neighbors:
+                n_row, n_col = neighbor
+                n_x, n_y = n_col * app.cellSize + app.cellSize // 2, n_row * app.cellSize + app.cellSize // 2
 
-        # Draw the weights for edges if weight hint is active
+                # Determine the direction of the road image
+                if row == n_row:  # Horizontal road
+                    drawImage(app.road_image, min(x, n_x), y - app.cellSize // 4, width=abs(x - n_x), height=app.cellSize // 2)
+                elif col == n_col:  # Vertical road
+                    drawImage(app.road_image, x - app.cellSize // 8, min(y, n_y) + 30, width=app.cellSize // 3, height=abs(y - n_y)//1.5,rotateAngle = 110)
+
+
         if app.weightHintActive and not app.gameOver:
             weight_pos = set()
-            for node, neighbors in app.graph.items(): # citation: I learned from https://www.w3schools.com/python/ref_dictionary_items.asp
+            for node, neighbors in app.graph.items():  # citation: I learned from https://www.w3schools.com/python/ref_dictionary_items.asp
                 for neighbor, weight in neighbors.items():
+                    # Avoid drawing the same weight multiple times for undirected edges
                     if (node, neighbor) in weight_pos or (neighbor, node) in weight_pos:
-                        continue  # Avoid drawing the same weight multiple times
+                        continue
                     weight_pos.add((node, neighbor))
                     x1, y1 = node[1] * app.cellSize + app.cellSize / 2, node[0] * app.cellSize + app.cellSize / 2
                     x2, y2 = neighbor[1] * app.cellSize + app.cellSize / 2, neighbor[0] * app.cellSize + app.cellSize / 2
                     midX, midY = (x1 + x2) / 2, (y1 + y2) / 2
-                    drawLabel(f'{weight}', midX, midY, size=20, fill='mediumSlateBlue', bold=True)
+                    if node[0] == neighbor[0]:  # Horizontal edge
+                        drawLabel(f'{weight}', midX+15, midY, size=20, fill='mediumSlateBlue', bold=True)
+                    elif node[1] == neighbor[1]:  # Vertical edge
+                        drawLabel(f'{weight}', midX + 45, midY, size=20, fill='mediumSlateBlue', bold=True)
+
+        # Draw nodes (boxes) with hint borders if applicable
+        for node in app.graph:
+            row, col = node
+            x, y = col * app.cellSize + app.cellSize // 2, row * app.cellSize + app.cellSize // 2
+            box_size = (app.cellSize * 3) // 4  # Increase the box size to 3/4 of cell size
+            box_left = x - box_size // 2
+            box_top = y - box_size // 2
+            border_color = None
+            drawImage(app.box_image, x - box_size // 2, y - box_size // 2, width=box_size, height=box_size)
+
+            # Change the border color for hints
+            if app.hintActive and app.currentHint:
+                if app.hintType == 'n' and node in app.currentHint:
+                    # Draw yellow border for the next shortest path hint
+                    border_color = 'yellow'
+                elif app.hintType == 'w':
+                    # Highlight the current character in green
+                    if app.currentCharIndex >= 0 and app.currentCharIndex < len(app.charPositions) and node == app.charPositions[app.currentCharIndex]:
+                        border_color = 'green'
+
+            drawRect(box_left, box_top, box_size, box_size, fill=None, border=border_color, borderWidth=2)
+
+            # Change the fill color if the player is at this node
+            if (row, col) == app.playerPos and not app.gameOver:
+                    # Draw the player position image
+                    player_left = app.playerPos[1] * app.cellSize
+                    player_top = app.playerPos[0] * app.cellSize
+                    drawImage(app.pos_image, player_left+app.cellSize/12, player_top + app.cellSize / 4,
+                            width=app.cellSize / 2, height=app.cellSize / 2)
+
+        # Draw the hint path if active for 'w'
+        if app.hintActive and app.hintType == 'w' and len(app.currentHint) > 1:
+            for i in range(len(app.currentHint) - 1):
+                start = app.currentHint[i]
+                end = app.currentHint[i + 1]
+                startX = start[1] * app.cellSize + app.cellSize / 2
+                startY = start[0] * app.cellSize + app.cellSize / 2
+                endX = end[1] * app.cellSize + app.cellSize / 2
+                endY = end[0] * app.cellSize + app.cellSize / 2
+                drawLine(startX, startY, endX, endY, fill='yellow', lineWidth=2, arrowEnd=True)
+
+        # Draw the character in the box (after everything else to ensure it is on top)
+        for node in app.graph:
+            row, col = node
+            x, y = col * app.cellSize + app.cellSize // 2, row * app.cellSize + app.cellSize // 2
+            char = app.board[row * app.boardSize + col]
+            drawLabel(char, x, y, size=26, bold=True)
 
         drawLabel(f'HP: {app.cost}', app.width - 80, 20, size=16, bold=True)
 
         if app.winMessage:
+            drawRect(840, app.height - 35, 350, 35, fill='white', border='black')
             drawLabel(app.winMessage, 1000, app.height-20, size=20, align='center', fill='black')
 
         drawLabel("Press 'n' for the next shortest path or 'w' for the whole shortest path. Press v to see the weight.", 1200, 40, size=20, fill='black')
@@ -239,6 +334,7 @@ def redrawAll(app):
         # Draw the character package at the bottom of the screen
         drawLabel("Collected Characters:", 850, 60, size=16, bold=True, fill='blue')
         for i, char in enumerate(app.characterPackage):
+            # citation Note: learned from the website: https://www.geeksforgeeks.org/enumerate-in-python/
             drawLabel(char, 950 + i * 20, 60, size=16, bold=True, fill='black')
 
         # Draw the currently selected word

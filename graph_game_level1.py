@@ -2,7 +2,12 @@ from cmu_graphics import *
 import BFS
 import random
 import huffman_tree_game
-import math
+from PIL import Image
+
+def getCmuImage(path):
+    pilImage = Image.open(path)
+    cmuImage = CMUImage(pilImage)
+    return cmuImage
 
 def getGameState(app):
     return app.winMessage
@@ -22,10 +27,10 @@ def buildGraph(app):
 def onAppStart(app):
     huffman_tree_game.onAppStart(app)
 
-    app.box_image = "IMG_2619.PNG" # citation: http://xhslink.com/a/iksJYiyVbnQ0
-    app.pos_image = "IMG_2646.PNG" # citation: http://xhslink.com/a/2KfFN1pzsYP0
-    app.road_image = "IMG_2621.PNG" # citation: http://xhslink.com/a/G9LEu3TShnQ0
-
+    app.box_image = getCmuImage("IMG_2619.PNG") # citation: http://xhslink.com/a/iksJYiyVbnQ0
+    app.road_image = getCmuImage("IMG_2621.PNG") # citation: http://xhslink.com/a/G9LEu3TShnQ0
+    app.pos_image = getCmuImage("IMG_2646.PNG") # citation: http://xhslink.com/a/2KfFN1pzsYP0
+    
     app.startScreen = True
     app.gameOver = False
     app.winMessage = None
@@ -61,6 +66,22 @@ def setupLevel(app,level):
     app.charPositions = []
     app.hintActive = False
     app.currentCharIndex = 0
+
+    # Cost settings
+    min_moves = len(app.targetWord)  # Minimum moves to collect all characters (one per character)
+    base_cost = min_moves * 3  # Base cost allows for exploration but requires efficiency
+
+    # Add difficulty factor: Higher levels have tighter costs
+    if level == 1:
+        app.cost = base_cost + 15  # Extra buffer for easier completion without hints
+    elif level == 2:
+        app.cost = base_cost + 10  # Moderate buffer, player may need hints
+    elif level == 3:
+        app.cost = base_cost + 5  # Tight buffer, hints are likely needed for success
+
+    # Adjust the cost so that using hints guarantees success
+    # This ensures that with hints, the player can always reach all required nodes
+    app.cost += len(app.targetWord) // 2  # Extra cost to account for optimal hint use
 
 def onMousePress(app, mouseX, mouseY):
     huffman_tree_game.onMousePress(app,mouseX,mouseY)
@@ -106,6 +127,7 @@ def onMousePress(app, mouseX, mouseY):
         packageStartX = 950
         if packageY - 20 <= mouseY <= packageY + 20:
             for i, char in enumerate(app.characterPackage):
+                # citation Note: learned from the website: https://www.geeksforgeeks.org/enumerate-in-python/
                 charX = packageStartX + i * 20
                 if charX - 10 <= mouseX <= charX + 10:
                     app.selectedWord.append(char)
@@ -137,6 +159,7 @@ def onKeyPress(app, key):
 
                 # Find the closest character matching the next target
                 for pos, boardChar in enumerate(app.board):
+                    # citation Note: learned from the website: https://www.geeksforgeeks.org/enumerate-in-python/
                     if boardChar == char:
                         row, col = (pos // app.boardSize, pos % app.boardSize)
                         level, p = BFS.bfs(app.graph, app.playerPos)
@@ -251,17 +274,19 @@ def redrawAll(app):
 
                 # Draw the cell border and label
                 drawRect(left, top, app.cellSize, app.cellSize, fill=None, border=border_color, borderWidth=3)
-                drawLabel(char, left + app.cellSize / 2, top + app.cellSize / 2, size=20, bold=True)
+                drawLabel(char, left + app.cellSize / 2, top + app.cellSize / 2, size=26, bold=True)
 
         
         drawLabel(f'HP: {app.cost}', app.width - 80, 20, size=16, bold=True)
         if app.winMessage:
+            drawRect(840, app.height - 35, 350, 35, fill='white', border='black')
             drawLabel(app.winMessage, 1000, app.height-20, size=20, align='center', fill='black')
 
         drawLabel("Press 'n' for the next shortest path or 'w' for the whole shortest path.", 1200, 40, size=20, fill='yellow')
         # Draw the character package at the bottom of the screen
         drawLabel("Collected Characters:", 850, 60, size=16, bold=True, fill='blue')
         for i, char in enumerate(app.characterPackage):
+            # citation Note: learned from the website: https://www.geeksforgeeks.org/enumerate-in-python/
             drawLabel(char, 950 + i * 20, 60, size=16, bold=True, fill='black')
 
         # Draw the currently selected word
@@ -276,7 +301,7 @@ def redrawAll(app):
             drawRect(500, app.height - 60, 100, 40, fill='lightGreen', border='black')
             drawLabel("Restart", 550, app.height - 40, size=16, bold=True, fill='black')
 
-def main():
-    runApp()
+# def main():
+#     runApp()
 
-main()
+# main()

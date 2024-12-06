@@ -1,4 +1,4 @@
-word_dictionary = [
+word_dictionary = {
     "electricalengineering",
     "lossless",
     "compression",
@@ -17,4 +17,4 @@ word_dictionary = [
     "inductancetransformer",
     "semiconductorpower",
     "energyefficiency"
-]
+}

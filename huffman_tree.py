@@ -57,6 +57,16 @@ def collect_nodes(node, nodes=[]):
         collect_nodes(node.right, nodes)
     return nodes
 
+def find_parent_nodes(node,char,parents):
+    if node is None:
+        return False
+    if node.char == char:
+        return True
+    if find_parent_nodes(node.left,char,parents) or find_parent_nodes(node.right,char,parents):
+        parents.append(node)
+        return True
+    return False
+
 # Huffman codes
 def generate_huffman_codes(node, track = "",codeh = dict()):
     if node is not None:
